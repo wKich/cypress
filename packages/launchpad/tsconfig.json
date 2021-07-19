@@ -51,6 +51,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "noErrorTruncation": true,
+    "resolveJsonModule": true,
     "experimentalDecorators": true
   },
 }

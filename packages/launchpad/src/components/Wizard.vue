@@ -18,7 +18,7 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, watch } from "vue";
+import { computed, defineComponent, PropType } from "vue";
 import { useStoreApp } from "../store/app";
 import TestingType from "./TestingType.vue";
 import EnvironmentSetup from "./EnvironmentSetup.vue";
@@ -26,11 +26,10 @@ import InstallDependencies from "./InstallDependencies.vue";
 import ConfigFile from "./ConfigFile.vue";
 import OpenBrowser from "./OpenBrowser.vue";
 import { gql } from '@apollo/client'
-import { WizardDocument } from '../generated/graphql'
-import { useQuery } from "@vue/apollo-composable";
+import { WizardFragment } from "../generated/graphql";
 
 gql`
-query Wizard {
+fragment Wizard on Query {
   app {
     isFirstOpen
   }
@@ -38,6 +37,12 @@ query Wizard {
 `
 
 export default defineComponent({
+  props: {
+    gql: {
+      type: Object as PropType<WizardFragment>,
+      // validator: (val): val is WizardFragment => true
+    }
+  },
   components: {
     TestingType,
     EnvironmentSetup,
@@ -45,24 +50,14 @@ export default defineComponent({
     ConfigFile,
     OpenBrowser,
   },
-  setup() {
+  setup(props) {
     const storeApp = useStoreApp();
 
     const title = computed(() => storeApp.getState().title)
     const description = computed(() => storeApp.getState().description)
     const steps = computed(() => storeApp.getState().steps)
 
-    const { onResult, result, loading } = useQuery(WizardDocument, {})
-
-    onResult((result) => {
-      console.log(result)
-    })
-
-    watch(result, value => {
-      console.log(value)
-    })
-
-    return { steps, title, description, loading, result };
+    return { steps, title, description, frag: props.gql };
   },
 });
 </script>

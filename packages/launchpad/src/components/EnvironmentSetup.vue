@@ -29,6 +29,16 @@ import { Framework, supportedFrameworks } from "../utils/frameworks";
 import { Bundler, supportedBundlers } from "../utils/bundler";
 import { useStoreApp } from "../store/app";
 import { useStoreConfig } from "../store/config";
+// import { gql } from "@apollo/client/core";
+
+// gql`
+// fragment EnvironmentSetup on App {
+// }
+// `
+
+// gql`
+// mutation 
+// `
 
 export default defineComponent({
   components: { WizardLayout, Select },

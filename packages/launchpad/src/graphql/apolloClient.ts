@@ -1,4 +1,4 @@
-import { ApolloLink, FetchResult, ApolloClient, InMemoryCache, Observable } from '@apollo/client/core'
+import { ApolloLink, FetchResult, ApolloClient, InMemoryCache, Observable } from '@apollo/client'
 import { fetchGraphql } from './graphqlIpc'
 
 const ipcLink = new ApolloLink((op) => {
@@ -18,8 +18,10 @@ const ipcLink = new ApolloLink((op) => {
 // Cache implementation
 const cache = new InMemoryCache()
 
-// Create the apollo client
-export const apolloClient = new ApolloClient({
-  link: ipcLink,
-  cache,
-})
+export function createApolloClient () {
+  // Create the apollo client
+  return new ApolloClient({
+    link: ipcLink,
+    cache,
+  })
+}

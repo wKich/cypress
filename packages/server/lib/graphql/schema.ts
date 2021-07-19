@@ -1,6 +1,7 @@
 import { makeSchema, asNexusMethod } from 'nexus'
 import path from 'path'
 import { JSONResolver, DateTimeResolver } from 'graphql-scalars'
+
 import * as entities from './entities'
 
 const customScalars = [
@@ -11,6 +12,7 @@ const customScalars = [
 export const graphqlSchema = makeSchema({
   types: [entities, customScalars],
   shouldGenerateArtifacts: true,
+  shouldExitAfterGenerateArtifacts: process.env.GRAPHQL_CODEGEN === 'true',
   outputs: {
     typegen: path.join(__dirname, 'gen/nxs.gen.ts'),
     schema: path.join(__dirname, '..', '..', 'schema.graphql'),

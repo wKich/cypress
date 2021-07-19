@@ -5,7 +5,8 @@ import { ExecContext } from '../ExecContext'
   description: 'Namespace for information related to the app',
 })
 export class App {
-  constructor (private ctx: ExecContext) {}
+  constructor (private ctx: ExecContext) {
+  }
 
   @nxs.queryField(() => {
     return { type: App }
@@ -18,6 +19,8 @@ export class App {
     description: 'Whether this is the first open of the application or not',
   })
   get isFirstOpen () {
+    this.ctx.options
+
     return true
   }
 }

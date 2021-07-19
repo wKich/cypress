@@ -3,7 +3,7 @@
   "version": "0.0.0-development",
   "private": true,
   "scripts": {
-    "prebuild": "yarn codegen",
+    "prebuild": "node script/build-schema.js && yarn codegen",
     "build": "vite build",
     "build-prod": "cross-env NODE_ENV=production yarn build",
     "clean-deps": "rm -rf node_modules",

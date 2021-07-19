@@ -1,8 +1,12 @@
+import { WizardFragmentDoc } from '../generated/graphql'
 import Wizard from './Wizard.vue'
 
 describe('<Wizard />', () => {
   it('should run the full flow', () => {
-    cy.mount(() => <Wizard />)
+    cy.mountFragment({
+      fragment: WizardFragmentDoc,
+      component: <Wizard />,
+    })
 
     cy.get('h1').should('contain', 'Welcome to Cypress')
     cy.contains('Component Testing').click()
