@@ -22,6 +22,7 @@ module.exports = (on, config) => {
     return startDevServer({
       options,
       webpackConfig: modifiedWebpackConfig,
+      template: 'cypress/component/index.html',
     })
   })
 

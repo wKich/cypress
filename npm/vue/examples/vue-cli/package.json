@@ -8,7 +8,9 @@
     "cy:open": "node ../../../../scripts/cypress open-ct",
     "test": "node ../../../../scripts/cypress run-ct",
     "report:coverage": "nyc report",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls"
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "storybook": "start-storybook -p 6006",
+    "build-storybook": "build-storybook"
   },
   "dependencies": {
     "core-js": "^3.6.5",
@@ -16,14 +18,21 @@
     "vue": "3.2.6"
   },
   "devDependencies": {
+    "@babel/core": "^7.15.5",
     "@cypress/code-coverage": "^3.9.5",
     "@cypress/vue": "file:../../dist",
+    "@storybook/addon-actions": "^6.3.8",
+    "@storybook/addon-essentials": "^6.3.8",
+    "@storybook/addon-links": "^6.3.8",
+    "@storybook/vue3": "^6.3.8",
     "@vue/cli-plugin-babel": "~4.5.0",
     "@vue/cli-plugin-pwa": "~4.5.0",
     "@vue/cli-service": "~4.5.0",
+    "babel-loader": "^8.2.2",
     "babel-plugin-istanbul": "~6.0.0",
     "mocha-junit-reporter": "^2.0.0",
     "mocha-multi-reporters": "^1.5.1",
+    "vue-loader": "^16.8.1",
     "vue-template-compiler": "^2.6.11"
   }
 }
