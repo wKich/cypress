@@ -1,9 +1,13 @@
 import fs from 'fs'
+import glob from 'glob'
+import fse from 'fs-extra'
 import path from 'path'
 import Debug from 'debug'
+import { promisify } from 'util'
+import { readCsfOrMdx, CsfFile } from '@storybook/csf-tools'
 
 import type { ServerContext } from './ServerContext'
-import { BaseActions, Project } from '@packages/graphql'
+import { BaseActions, Project, Storybook } from '@packages/graphql'
 import { openProject } from '@packages/server/lib/open_project'
 import type { LaunchArgs, LaunchOpts, FoundBrowser, OpenProjectLaunchOptions, FullConfig } from '@packages/types'
 import { getProjectRoots, insertProject } from '@packages/server/lib/cache'
@@ -23,6 +27,11 @@ import { getId } from '../project_static'
 import type { BrowserContract } from '../../../graphql/src/contracts/BrowserContract'
 
 const debug = Debug('cypress:server:graphql')
+
+const exists = promisify(fs.access)
+const readFile = promisify(fs.readFile)
+const asyncGlob = promisify(glob)
+const writeFile = promisify(fs.writeFile)
 
 /**
  *
@@ -103,6 +112,20 @@ export class ServerActions extends BaseActions {
     fs.writeFileSync(path.resolve(project.projectRoot, configFilename), code)
   }
 
+  createComponentTemplate (template: string) {
+    const project = this.ctx.activeProject
+
+    if (!project) {
+      throw Error(`Cannot create config file without activeProject.`)
+    }
+
+    if (this.ctx.activeProject?.isFirstTimeCT) {
+      const indexHtmlPath = path.resolve(this.ctx.activeProject.projectRoot, 'cypress/component/index.html')
+
+      fse.outputFileSync(indexHtmlPath, template)
+    }
+  }
+
   async initializeOpenProject (args: LaunchArgs, options: OpenProjectLaunchOptions, browsers: FoundBrowser[]) {
     await openProject.create(args.projectRoot, args, options, browsers)
     if (!this.ctx.activeProject) {
@@ -149,4 +172,177 @@ export class ServerActions extends BaseActions {
       throw Error(e)
     }
   }
+
+  async detectStorybook (projectRoot: string): Promise<Storybook> {
+    const storybookRoot = path.join(projectRoot, '.storybook')
+
+    try {
+      await exists(storybookRoot, fs.constants.F_OK)
+    } catch {
+      return new Storybook(false)
+    }
+    // Find and resolve mainJs
+    // TODO: Should be sandboxed
+    const mainJsPath = path.join(storybookRoot, 'main.js')
+    let mainJs: any
+
+    try {
+      let mainJsModule = require(mainJsPath)
+
+      mainJs = {
+        name: 'main.js',
+        absolute: mainJsPath,
+        relative: path.relative(projectRoot, mainJsPath),
+        storyGlobs: mainJsModule.stories,
+        // Want to defer this but I'm sure there is a better way
+        async getStories () {
+          const files: string[] = []
+
+          for (const storyPattern of mainJsModule.stories) {
+            const res = await asyncGlob(path.join(storybookRoot, storyPattern))
+
+            files.push(...res)
+          }
+
+          return files
+        },
+      }
+    } catch (e) {
+      mainJs = null
+    }
+
+    const previewJsPath = path.join(storybookRoot, 'preview.js')
+    let previewJs: any
+
+    try {
+      await exists(previewJsPath)
+      previewJs = {
+        name: 'preview-head.html',
+        absolute: previewJsPath,
+        relative: path.relative(projectRoot, previewJsPath),
+      }
+    } catch (e) {
+      previewJs = null
+    }
+
+    const previewHeadPath = path.join(storybookRoot, 'preview-head.html')
+    let previewHead: any
+
+    try {
+      const previewHeadContent = await readFile(previewHeadPath, 'utf-8')
+
+      previewHead = {
+        name: 'preview-head.html',
+        absolute: previewHeadPath,
+        relative: path.relative(projectRoot, previewHeadPath),
+        content: previewHeadContent,
+      }
+    } catch (e) {
+      previewHead = null
+    }
+
+    const previewBodyPath = path.join(storybookRoot, 'preview-body.html')
+    let previewBody: any
+
+    try {
+      const previewBodyContent = await readFile(previewBodyPath, 'utf-8')
+
+      previewBody = {
+        name: 'preview-head.html',
+        absolute: previewBodyPath,
+        relative: path.relative(projectRoot, previewBodyPath),
+        content: previewBodyContent,
+      }
+    } catch (e) {
+      previewBody = null
+    }
+
+    return new Storybook(true, { mainJs, previewJs, previewHead, previewBody })
+  }
+
+  async generateSpecFromStory (
+    storyPath: string,
+    projectRoot: string,
+  ): Promise<Cypress.Cypress['spec'] | null> {
+    const storyFile = path.parse(storyPath)
+    const storyName = storyFile.name.split('.')[0] // assume Button.stories.ts structure
+
+    try {
+      const raw = await readCsfOrMdx(storyPath, { defaultTitle: storyName })
+      const parsed = raw.parse()
+
+      if (
+        (!parsed.meta.title && !parsed.meta.component) ||
+        !parsed.stories.length
+      ) {
+        return null
+      }
+
+      const newSpecContent = generateSpecFromStories(parsed, storyFile)
+      const newSpecPath = path.join(
+        storyPath,
+        '..',
+        `${parsed.meta.component}.cy-spec${storyFile.ext}`,
+      )
+
+      await writeFile(newSpecPath, newSpecContent)
+
+      return {
+        name: path.parse(newSpecPath).name,
+        relative: path.relative(projectRoot, newSpecPath),
+        absolute: newSpecPath,
+      }
+    } catch (e) {
+      return null
+    }
+  }
+}
+
+function generateSpecFromStories (parsed: CsfFile, storyFile: path.ParsedPath) {
+  // TODO: Only gen from stories we support (React, Vue)
+  if (
+    parsed._ast.program.body.some(
+      (statement) => {
+        return statement.type === 'ImportDeclaration' &&
+        statement.source.value.includes('.vue')
+      },
+    )
+  ) {
+    return `import * as stories from './${storyFile.name}';
+import { mount, composeStories } from '@cypress/vue';
+
+const composedStories = composeStories(stories);
+
+describe('${parsed.meta.title || parsed.meta.component}', () => {
+${parsed.stories
+    .map((story, i) => {
+      const component = story.name.replace(/\s+/, '')
+
+      return `  ${i !== 0 ? '// ' : ''}it('should render ${component}', () => {
+  ${i !== 0 ? '// ' : ''}  const { ${component} } = composedStories
+  ${i !== 0 ? '// ' : ''}  mount(${component}())
+  ${i !== 0 ? '// ' : ''}})`
+    })
+    .join('\n\n')}
+})`
+  }
+
+  return `import React from 'react';
+import * as stories from './${storyFile.name}';
+import { mount, composeStories } from '@cypress/react';
+
+const composedStories = composeStories(stories);
+
+describe('${parsed.meta.title || parsed.meta.component}', () => {
+${parsed.stories
+  .map((story, i) => {
+    const component = story.name.replace(/\s+/, '')
+
+    return `  ${i !== 0 ? '// ' : ''}it('should render ${component}', () => {
+  ${i !== 0 ? '// ' : ''}  const { ${component} } = composedStories
+  ${i !== 0 ? '// ' : ''}  mount(<${component} />)
+  ${i !== 0 ? '// ' : ''}})`
+  })
+  .join('\n\n')}
+})`
 }

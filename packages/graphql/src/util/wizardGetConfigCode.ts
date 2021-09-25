@@ -1,3 +1,4 @@
+import type { Storybook } from '../entities/Storybook'
 import { FRAMEWORK_CONFIG_FILE, WizardCodeLanguage } from '../constants/wizardConstants'
 import type { WizardBundler } from '../entities/WizardBundler'
 import type { WizardFrontendFramework } from '../entities/WizardFrontendFramework'
@@ -12,6 +13,7 @@ interface GetCodeOptsCt {
   framework: WizardFrontendFramework
   bundler: WizardBundler
   lang: WizardCodeLanguage
+  storybook: Storybook | null
 }
 
 type GetCodeOpts = GetCodeOptsCt | GetCodeOptsE2E
@@ -45,12 +47,12 @@ export const wizardGetConfigCodeCt = (opts: GetCodeOptsCt): string | null => {
   const { framework, bundler, lang } = opts
 
   const comments = `Component testing, ${LanguageNames[opts.lang]}, ${framework.name}, ${bundler.name}`
-  const frameworkConfig = FRAMEWORK_CONFIG_FILE[framework.id]
+  const frameworkConfig = (FRAMEWORK_CONFIG_FILE as any)[framework.id]
 
   if (frameworkConfig) {
     return `// ${comments}
 
-${frameworkConfig[lang]}`
+${frameworkConfig(opts)[lang]}`
   }
 
   const exportStatement =
@@ -74,7 +76,7 @@ ${frameworkConfig[lang]}`
           '',
       ].join('\n  ')
 
-  const startServerReturn = `return startDevServer({ options, webpackConfig })`
+  const startServerReturn = `return startDevServer({ options, webpackConfig, template: 'cypress/component/index.html' })`
 
   return `// ${comments}
 ${importStatements}
@@ -85,4 +87,42 @@ ${exportStatement}
     })
   }
 }`
+}
+
+export const wizardGetComponentTemplate = (opts: Omit<GetCodeOptsCt, 'lang' | 'type'>) => {
+  const framework = opts.framework.id
+  let headModifier = ''
+  let bodyModifier = ''
+
+  if (framework === 'nextjs') {
+    headModifier += '<div id="__next_css__DO_NOT_USE__"></div>'
+  }
+
+  if (opts.storybook?.previewHead?.content) {
+    headModifier += opts.storybook?.previewHead?.content
+  }
+
+  if (opts.storybook?.previewBody?.content) {
+    headModifier += opts.storybook?.previewBody?.content
+  }
+
+  return getComponentTemplate({ headModifier, bodyModifier })
+}
+
+const getComponentTemplate = (opts: {headModifier: string, bodyModifier: string}) => {
+  // TODO: Properly indent additions and strip newline if none
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Components App</title>
+    ${opts.headModifier}
+  </head>
+  <body>
+    ${opts.bodyModifier}
+    <div id="__cy_root"></div>
+  </body>
+</html>`
 }

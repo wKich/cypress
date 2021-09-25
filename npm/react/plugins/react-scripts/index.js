@@ -4,14 +4,14 @@ const { getLegacyDevServer } = require('../utils/legacy-setup-dev-server')
 
 function devServer (cypressDevServerConfig, {
   webpackConfigPath,
-} = {
-  webpackConfigPath: 'react-scripts/config/webpack.config',
-}) {
+  template,
+} = {}) {
   return startDevServer({
     options: cypressDevServerConfig,
     webpackConfig: findReactScriptsWebpackConfig(cypressDevServerConfig.config, {
-      webpackConfigPath,
+      webpackConfigPath: webpackConfigPath || 'react-scripts/config/webpack.config',
     }),
+    template,
   })
 }
 

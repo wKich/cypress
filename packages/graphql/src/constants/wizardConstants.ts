@@ -2,6 +2,7 @@ import { enumType } from 'nexus'
 import dedent from 'dedent'
 
 import type { NexusGenEnums } from '../gen/nxs.gen'
+import type { Storybook } from '../entities/Storybook'
 
 export const BUNDLER = ['webpack', 'vite'] as const
 
@@ -154,64 +155,105 @@ export const WizardCodeLanguageEnum = enumType({
   members: WIZARD_CODE_LANGUAGE,
 })
 
-export const FRAMEWORK_CONFIG_FILE: Partial<Record<NexusGenEnums['FrontendFramework'], Record<NexusGenEnums['WizardCodeLanguage'], string> | null>> = {
-  nextjs: {
-    js: dedent`
-      const injectNextDevServer = require('@cypress/react/plugins/next')
+export const FRAMEWORK_CONFIG_FILE = {
+  nextjs (opts: {storybook: Storybook | null}) {
+    return {
+      js: dedent`
+        const injectNextDevServer = require('@cypress/react/plugins/next')
 
-      module.exports = {
-        component (on, config) {
-          injectNextDevServer(on, config)
-        },
-      }
-    `,
-    ts: dedent`
-      import { defineConfig } from 'cypress'
-      import injectNextDevServer from '@cypress/react/plugins/next'
+        module.exports = {
+          component (on, config) {
+            injectNextDevServer(on, config)
+          },
+        }
+      `,
+      ts: dedent`
+        import { defineConfig } from 'cypress'
+        import injectNextDevServer from '@cypress/react/plugins/next'
 
-      export default defineConfig({
-        component (on, config) {
-          injectNextDevServer(on, config)
-        },
-      })
-    `,
+        export default defineConfig({
+          component (on, config) {
+            injectNextDevServer(on, config)
+          },
+        })
+      `,
+    }
   },
-  nuxtjs: {
-    js: dedent`
-      const { startDevServer } = require('@cypress/webpack-dev-server')
-      const { getWebpackConfig } = require('nuxt')
+  nuxtjs (opts: {storybook: Storybook | null}) {
+    return {
+      js: dedent`
+        const { startDevServer } = require('@cypress/webpack-dev-server')
+        const { getWebpackConfig } = require('nuxt')
 
-      module.exports = {
-        component (on, config) {
-          on('dev-server:start', async (options) => {
-            let webpackConfig = await getWebpackConfig('modern', 'dev')
+        module.exports = {
+          component (on, config) {
+            on('dev-server:start', async (options) => {
+              let webpackConfig = await getWebpackConfig('modern', 'dev')
 
-            return startDevServer({
-              options,
-              webpackConfig,
+              return startDevServer({
+                options,
+                webpackConfig,
+              })
             })
-          })
-        },
-      }
-    `,
-    ts: dedent`
-      import { defineConfig } from 'cypress'
-      import { startDevServer } from '@cypress/webpack-dev-server'
-      import { getWebpackConfig } from 'nuxt'
+          },
+        }
+      `,
+      ts: dedent`
+        import { defineConfig } from 'cypress'
+        import { startDevServer } from '@cypress/webpack-dev-server'
+        import { getWebpackConfig } from 'nuxt'
 
-      export default defineConfig({
-        component (on, config) {
-          on('dev-server:start', async (options) => {
-            let webpackConfig = await getWebpackConfig('modern', 'dev')
+        export default defineConfig({
+          component (on, config) {
+            on('dev-server:start', async (options) => {
+              let webpackConfig = await getWebpackConfig('modern', 'dev')
 
-            return startDevServer({
-              options,
-              webpackConfig,
+              return startDevServer({
+                options,
+                webpackConfig,
+              })
             })
-          })
-        },
-      })
-    `,
+          },
+        })
+      `,
+    }
+  },
+  cra (opts: {storybook: Storybook}) {
+    let options: any = {
+      // assuming every project gets an index.html
+      template: 'cypress/component/index.html',
+    }
+
+    if (opts.storybook.configured) {
+      options.addTranspiledFolders = ['.storybook']
+    }
+
+    const stringifiedOptions = JSON.stringify(options)
+
+    return {
+      js: dedent`
+        const { defineConfig } = require('cypress')
+        const { devServer, defineDevServerConfig } = require('@cypress/plugins/react-scripts')
+
+        module.exports = defineConfig({
+          component: {
+            devServer,
+            devServerConfig: defineDevServerConfig(${stringifiedOptions})
+          }
+        })
+      `,
+      ts: dedent`
+        import { defineConfig } from 'cypress'
+        import { devServer, defineDevServerConfig } from '@cypress/plugins/react-scripts'
+
+        export default defineConfig({
+          component: {
+            devServer,
+            devServerConfig: defineDevServerConfig(${stringifiedOptions})
+          }
+        })
+      `,
+    }
   },
 }
 
@@ -238,3 +280,22 @@ export const BundleMapping: Record<Bundler, NpmPackages> = {
   vite: '@cypress/vite-dev-server',
   webpack: '@cypress/webpack-dev-server',
 }
+
+export const DEFAULT_COMPONENT_TEMPLATE =
+`<!DOCTYPE html>
+<html>
+  <head>
+    __CY__PREVIEW_HEAD_PREPEND__CY__
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Components App</title>
+    __CY__PREVIEW_HEAD__CY__
+  </head>
+  <body>
+    __CY__PREVIEW_BODY_PREPEND__CY__
+    <div id="__cy_root"></div>
+    __CY__PREVIEW_BODY__CY__
+  </body>
+</html>
+`

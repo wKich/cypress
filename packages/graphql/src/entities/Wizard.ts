@@ -19,11 +19,12 @@ import {
   WizardNavigateDirection,
 } from '../constants/wizardConstants'
 import type { BaseContext } from '../context/BaseContext'
-import { wizardGetConfigCode } from '../util/wizardGetConfigCode'
+import { wizardGetComponentTemplate, wizardGetConfigCode } from '../util/wizardGetConfigCode'
 import { TestingTypeInfo } from './TestingTypeInfo'
 import { WizardBundler } from './WizardBundler'
 import { WizardFrontendFramework } from './WizardFrontendFramework'
 import { WizardNpmPackage } from './WizardNpmPackage'
+import { Storybook } from './Storybook'
 
 const debug = Debug('cypress:graphql:wizard')
 
@@ -36,6 +37,7 @@ export class Wizard {
   private chosenBundler: Bundler | null
   private chosenFramework: FrontendFramework | null
   private chosenManualInstall: boolean
+  private _storybook: Storybook | null
   private _history: WizardStep[] = ['welcome']
 
   constructor (private _ctx: BaseContext) {
@@ -43,6 +45,7 @@ export class Wizard {
     this.chosenBundler = null
     this.chosenFramework = null
     this.chosenManualInstall = false
+    this._storybook = null
   }
 
   get history (): WizardStep[] {
@@ -136,17 +139,20 @@ export class Wizard {
       })
     },
   })
-  sampleCode (args: NxsArgs<'Wizard', 'sampleCode'>): NxsResult<'Wizard', 'sampleCode'> {
+  async sampleCode (args: NxsArgs<'Wizard', 'sampleCode'>): Promise<NxsResult<'Wizard', 'sampleCode'>> {
     if (this.chosenTestingType === 'component') {
       if (!this.framework || !this.bundler) {
         return null
       }
+
+      const storybook = await this.storybook()
 
       return wizardGetConfigCode({
         type: 'component',
         framework: this.framework,
         bundler: this.bundler,
         lang: args.lang,
+        storybook,
       })
     }
 
@@ -154,6 +160,36 @@ export class Wizard {
       return wizardGetConfigCode({
         type: 'e2e',
         lang: args.lang,
+      })
+    }
+
+    return null
+  }
+
+  @nxs.field.type(() => Storybook, {
+    description: 'Foo',
+  })
+  async storybook (): Promise<NxsResult<'Wizard', 'storybook'>> {
+    if (this._storybook) return this._storybook
+
+    return this._storybook = await this._ctx.actions.detectStorybook(this._ctx.activeProject?.projectRoot || '')
+  }
+
+  @nxs.field.string({
+    description: 'Sample index.html template code',
+  })
+  async sampleTemplate (): Promise<NxsResult<'Wizard', 'sampleTemplate'>> {
+    if (this.chosenTestingType === 'component') {
+      if (!this.framework || !this.bundler) {
+        return null
+      }
+
+      const storybook = await this.storybook()
+
+      return wizardGetComponentTemplate({
+        framework: this.framework,
+        bundler: this.bundler,
+        storybook,
       })
     }
 
@@ -340,6 +376,12 @@ export class Wizard {
   // for testing - bypass canNavigateForward checks
   setStep (step: typeof WIZARD_STEP[number]): Wizard {
     this.currentStep = step
+
+    return this
+  }
+
+  addGeneratedSpec (spec: Cypress.Cypress['spec']): Wizard {
+    this._storybook?._generatedSpecs.push(spec)
 
     return this
   }

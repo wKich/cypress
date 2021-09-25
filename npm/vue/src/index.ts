@@ -12,6 +12,8 @@ import {
   setupHooks,
 } from '@cypress/mount-utils'
 
+export * from '@storybook/testing-vue3'
+
 const DEFAULT_COMP_NAME = 'unknown'
 
 type GlobalMountOptions = Required<MountingOptions<any>>['global']

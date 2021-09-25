@@ -34,7 +34,8 @@ import SettingsIcon from '~icons/cy/settings_x24'
 const navigation = [
   { name: 'Specs', icon: SpecsIcon, href: '/' },
   { name: 'Runs', icon: CodeIcon, href: '/runs' },
-  { name: 'Settings', icon: SettingsIcon, href: '/settings' }
+  { name: 'Settings', icon: SettingsIcon, href: '/settings' },
+  { name: 'New Spec', icon: SettingsIcon, href: '/newspec' }
 ]
 
 defineProps<{

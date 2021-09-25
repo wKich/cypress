@@ -85,6 +85,23 @@ export const mutation = mutationType({
       },
     })
 
+    t.field('appCreateComponentTemplate', {
+      type: 'App',
+      args: {
+        template: nonNull('String'),
+      },
+      description: 'Create an index.html for component testing.',
+      resolve: (root, args, ctx) => {
+        if (!ctx.activeProject) {
+          throw Error('Cannot create component template without an active project')
+        }
+
+        ctx.actions.createComponentTemplate(args.template)
+
+        return ctx.app
+      },
+    })
+
     t.field('navigationMenuSetItem', {
       type: 'NavigationMenu',
       description: 'Set the current navigation item',
@@ -200,6 +217,25 @@ export const mutation = mutationType({
         ctx.actions.addProject(args.path)
 
         return ctx.app
+      },
+    })
+
+    t.nonNull.field('generateSpecFromStory', {
+      type: 'Wizard',
+      description: 'Generate spec from Storybook story',
+      args: {
+        storyPath: nonNull(stringArg()),
+        framework: stringArg(),
+      },
+      async resolve (_root, args, ctx) {
+        const config = ctx.actions.resolveOpenProjectConfig()
+        const spec = await ctx.actions.generateSpecFromStory(args.storyPath, config?.componentFolder || '')
+
+        if (spec) {
+          ctx.wizard.addGeneratedSpec(spec)
+        }
+
+        return ctx.wizard
       },
     })
   },

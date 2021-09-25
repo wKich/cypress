@@ -250,8 +250,14 @@ type Mutation {
   """Add project to projects array and cache it"""
   addProject(path: String!): App!
 
+  """Create an index.html for component testing."""
+  appCreateComponentTemplate(template: String!): App
+
   """Create a Cypress config file for a new project"""
   appCreateConfigFile(code: String!, configFilename: String!): App
+
+  """Generate spec from Storybook story"""
+  generateSpecFromStory(framework: String, storyPath: String!): Wizard!
 
   """
   Initializes open_project global singleton to manager current project state
@@ -514,6 +520,48 @@ enum ResolvedType {
   string
 }
 
+"""Storybook detection"""
+type Storybook {
+  """Whether Storybook is configured"""
+  configured: Boolean!
+
+  """Generated specs"""
+  generatedSpecs: [StorybookFile!]!
+
+  """Detected Storybook main.js file"""
+  mainJs: StorybookMainJs
+
+  """Detected Storybook preview-body.html file"""
+  previewBody: StorybookHtmlFile
+
+  """Detected Storybook preview-head.html file"""
+  previewHead: StorybookHtmlFile
+
+  """Detected Storybook preview.js file"""
+  previewJs: StorybookFile
+}
+
+type StorybookFile {
+  absolute: String!
+  name: String!
+  relative: String!
+}
+
+type StorybookHtmlFile {
+  absolute: String!
+  content: String!
+  name: String!
+  relative: String!
+}
+
+type StorybookMainJs {
+  absolute: String!
+  name: String!
+  relative: String!
+  stories: [JSON]
+  storyGlobs: [String]
+}
+
 """The bundlers that we can use with Cypress"""
 enum SupportedBundlers {
   vite
@@ -564,7 +612,13 @@ type Wizard {
 
   """Configuration file based on bundler and framework of choice"""
   sampleCode(lang: WizardCodeLanguage! = js): String
+
+  """Sample index.html template code"""
+  sampleTemplate: String
   step: WizardStep!
+
+  """Foo"""
+  storybook: Storybook
 
   """
   The testing type we are setting in the wizard, null if this has not been chosen

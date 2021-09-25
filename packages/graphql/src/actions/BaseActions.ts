@@ -2,6 +2,7 @@ import type { BaseContext } from '../context/BaseContext'
 import type { FoundBrowser, OpenProjectLaunchOptions, LaunchOpts, LaunchArgs, FullConfig } from '@packages/types'
 import type { BrowserContract } from '../contracts/BrowserContract'
 import type { Project } from '../entities/Project'
+import type { Storybook } from '../entities/Storybook'
 
 /**
  * Acts as the contract for all actions, inherited by:
@@ -17,6 +18,7 @@ export abstract class BaseActions {
   abstract installDependencies (): void
 
   abstract createConfigFile (code: string, configFilename: string): void
+  abstract createComponentTemplate(template: string): void
 
   abstract loadProjects (): Promise<Project[]>
   abstract addProject (projectRoot: string): Project
@@ -36,4 +38,8 @@ export abstract class BaseActions {
   abstract resolveOpenProjectConfig (): FullConfig | null
 
   abstract isFirstTime (projectRoot: string, testingType: Cypress.TestingType): boolean
+
+  abstract detectStorybook (projectRoot: string): Promise<Storybook>
+
+  abstract generateSpecFromStory(storyPath: string, projectRoot: string): Promise<Cypress.Cypress['spec'] | null>
 }
